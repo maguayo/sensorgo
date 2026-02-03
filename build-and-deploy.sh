@@ -9,8 +9,8 @@ NC='\033[0m'
 
 echo -e "${GREEN}🔨 Compilando para Linux desde macOS...${NC}"
 
-# Compilar para Linux AMD64
-GOOS=linux GOARCH=amd64 go build -o insectius-monitor main.go
+# Compilar para Linux AMD64 (sin CGO para portabilidad)
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o insectius-monitor main.go
 
 echo -e "${GREEN}✅ Binario compilado: insectius-monitor${NC}"
 echo ""

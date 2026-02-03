@@ -1,7 +1,8 @@
 #!/bin/bash
-# Script de instalación para RuuviTag Monitor en Debian/Ubuntu
+# Script de instalación para Insectius Monitor en Debian/Ubuntu
+# Modo robusto: no falla ante errores de dependencias
 
-set -e
+# No usar set -e para permitir continuar si hay errores no críticos
 
 # Colores para output
 RED='\033[0;31m'
@@ -54,20 +55,61 @@ fi
 echo -e "${GREEN}✓ Go encontrado en: $GO_PATH${NC}"
 $GO_PATH version
 
-# Instalar dependencias del sistema si no están
+# Instalar dependencias del sistema (no falla si hay problemas)
 echo "📦 Instalando dependencias del sistema..."
-apt-get update -qq
-apt-get install -y bluetooth bluez libbluetooth-dev
+echo "  (Continuará aunque algunas dependencias fallen)"
+apt-get update -qq || true
+
+# Intentar arreglar paquetes rotos primero
+echo "  🔧 Arreglando paquetes rotos..."
+apt-get install -f -y || true
+
+# Instalar dependencias de Bluetooth una por una
+echo "  📡 Instalando Bluetooth..."
+apt-get install -y bluetooth 2>/dev/null || echo -e "${YELLOW}⚠️  bluetooth ya instalado o no disponible${NC}"
+apt-get install -y bluez 2>/dev/null || echo -e "${YELLOW}⚠️  bluez ya instalado o no disponible${NC}"
+apt-get install -y libbluetooth-dev 2>/dev/null || echo -e "${YELLOW}⚠️  libbluetooth-dev no disponible (no crítico)${NC}"
+
+# Instalar dependencias gráficas para Fyne (no crítico si fallan)
+echo "  🖥️  Instalando dependencias gráficas..."
+apt-get install -y libgl1-mesa-dev 2>/dev/null || true
+apt-get install -y xorg-dev 2>/dev/null || true
+apt-get install -y libx11-dev 2>/dev/null || true
+apt-get install -y libxcursor-dev 2>/dev/null || true
+apt-get install -y libxrandr-dev 2>/dev/null || true
+apt-get install -y libxinerama-dev 2>/dev/null || true
+apt-get install -y libxi-dev 2>/dev/null || true
+apt-get install -y libglfw3-dev 2>/dev/null || true
+apt-get install -y libxxf86vm-dev 2>/dev/null || true
+apt-get install -y gcc 2>/dev/null || true
+apt-get install -y pkg-config 2>/dev/null || true
+
+echo -e "${GREEN}✓ Dependencias instaladas (o ya presentes)${NC}"
 
 # Compilar el binario si no existe
 if [ ! -f "insectius-monitor" ]; then
     echo "🔨 Compilando binario..."
-    sudo -u $REAL_USER env PATH=$PATH $GO_PATH build -o insectius-monitor main.go
+    echo "  (Esto puede tomar varios minutos en Raspberry Pi...)"
+
+    if sudo -u $REAL_USER env PATH=$PATH CGO_ENABLED=1 $GO_PATH build -o insectius-monitor main.go 2>&1 | tee /tmp/build.log; then
+        echo -e "${GREEN}✓ Compilación exitosa${NC}"
+    else
+        echo -e "${RED}❌ Error en la compilación${NC}"
+        echo "  Ver detalles en: /tmp/build.log"
+        echo ""
+        echo "Últimas líneas del error:"
+        tail -20 /tmp/build.log
+        echo ""
+        echo -e "${YELLOW}💡 Intenta instalar las dependencias manualmente:${NC}"
+        echo "  sudo apt-get install -y build-essential libgl1-mesa-dev xorg-dev"
+        exit 1
+    fi
 fi
 
 # Verificar que el binario existe
 if [ ! -f "insectius-monitor" ]; then
-    echo -e "${RED}❌ Error: No se pudo compilar el binario${NC}"
+    echo -e "${RED}❌ Error: No se encontró el binario insectius-monitor${NC}"
+    echo "  Compílalo manualmente con: go build -o insectius-monitor main.go"
     exit 1
 fi
 

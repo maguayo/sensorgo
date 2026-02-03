@@ -6,18 +6,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"image/color"
 	"io"
 	"net/http"
 	"os"
+	"sensorsgo/ui"
 	"sync"
 	"time"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 	"tinygo.org/x/bluetooth"
 )
 
@@ -28,21 +23,11 @@ const (
 )
 
 var (
-	lastHTTPStatus bool // true = success, false = error
-	statusLabel    *canvas.Text
-	statusIcon     *canvas.Text
-	statusMutex    sync.Mutex
-	activityLog    *widget.Label
-	logMessages    []string
-	logMutex       sync.Mutex
-	maxLogLines    = 15
-	sensorStatus   *widget.Label
-	lastSeenMap    map[string]time.Time
-	lastSeenMutex  sync.Mutex
-	onlineTimeout  = 2 * time.Minute // Sensor offline si no se ve en 2 minutos
-	background     *canvas.Rectangle
-	timestampLabel *canvas.Text
-	apiKey         string // API key para autenticación
+	terminalUI    *ui.TerminalUI
+	lastSeenMap   map[string]time.Time
+	lastSeenMutex sync.Mutex
+	onlineTimeout = 2 * time.Minute // Sensor offline si no se ve en 2 minutos
+	apiKey        string            // API key para autenticación
 )
 
 // RuuviData contiene los datos parseados del sensor
@@ -165,7 +150,7 @@ func main() {
 		return
 	}
 
-	// Modo normal: iniciar GUI y escaneo
+	// Modo normal: iniciar terminal UI y escaneo
 	startMonitoring(adapter, config)
 }
 
@@ -297,102 +282,17 @@ func startMonitoring(adapter *bluetooth.Adapter, config *Config) {
 		}
 	}()
 
-	// Iniciar GUI
-	startGUI()
+	// Iniciar terminal UI
+	startTerminalUI()
 }
 
-// startGUI inicia la interfaz gráfica
-func startGUI() {
-	myApp := app.New()
-	myWindow := myApp.NewWindow("RuuviTag Monitor")
+// startTerminalUI inicia la interfaz de terminal
+func startTerminalUI() {
+	terminalUI = ui.NewTerminalUI()
+	terminalUI.Start()
 
-	// Crear fondo de color (gris por defecto, cambiará a verde/rojo)
-	background = canvas.NewRectangle(color.RGBA{R: 50, G: 50, B: 50, A: 255})
-
-	// Crear icono grande
-	statusIcon = canvas.NewText("...", color.RGBA{R: 200, G: 200, B: 200, A: 255})
-	statusIcon.TextSize = 200
-	statusIcon.Alignment = fyne.TextAlignCenter
-
-	// Crear label de estado
-	statusLabel = canvas.NewText("Inicializando sistema...", color.RGBA{R: 200, G: 200, B: 200, A: 255})
-	statusLabel.TextSize = 20
-	statusLabel.Alignment = fyne.TextAlignCenter
-
-	// Crear timestamp label
-	timestampLabel = canvas.NewText("", color.RGBA{R: 200, G: 200, B: 200, A: 255})
-	timestampLabel.TextSize = 16
-	timestampLabel.Alignment = fyne.TextAlignCenter
-
-	// Crear widget de estado de sensores (esquina superior derecha)
-	sensorStatus = widget.NewLabel("Sensores: --")
-	sensorStatus.Alignment = fyne.TextAlignTrailing
-	sensorStatus.TextStyle = fyne.TextStyle{Monospace: true}
-
-	// Crear área de logs de actividad con fondo semi-transparente
-	activityLog = widget.NewLabel("Esperando actividad...\n")
-	activityLog.Alignment = fyne.TextAlignLeading
-	activityLog.Wrapping = fyne.TextWrapWord
-
-	// Fondo para los logs
-	logBackground := canvas.NewRectangle(color.RGBA{R: 0, G: 0, B: 0, A: 200})
-
-	// Título de la sección de logs
-	logTitle := canvas.NewText("Actividad del Sistema", color.RGBA{R: 255, G: 255, B: 255, A: 255})
-	logTitle.TextSize = 16
-	logTitle.Alignment = fyne.TextAlignCenter
-
-	// Separador visual
-	separator := canvas.NewRectangle(color.RGBA{R: 255, G: 255, B: 255, A: 100})
-	separator.SetMinSize(fyne.NewSize(0, 2))
-
-	// Actualizar timestamp cada segundo
-	go func() {
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-
-		for range ticker.C {
-			timestampLabel.Text = time.Now().Format("15:04:05 - 02/01/2006")
-			timestampLabel.Refresh()
-		}
-	}()
-
-	// Header con estado de sensores en la esquina
-	headerRight := container.NewVBox(sensorStatus)
-
-	// Layout con logs en la parte inferior
-	topSection := container.NewVBox(
-		container.NewCenter(statusIcon),
-		container.NewCenter(statusLabel),
-		container.NewCenter(timestampLabel),
-	)
-
-	// Logs con fondo oscuro
-	logsWithBackground := container.NewStack(
-		logBackground,
-		container.NewVBox(
-			separator,
-			container.NewCenter(logTitle),
-			activityLog,
-		),
-	)
-
-	bottomSection := logsWithBackground
-
-	content := container.NewBorder(
-		topSection,    // top
-		bottomSection, // bottom
-		nil,           // left
-		headerRight,   // right (sensor status)
-		nil,           // center (vacío)
-	)
-
-	// Stack: background detrás, contenido delante
-	finalContent := container.NewStack(background, content)
-
-	myWindow.SetContent(finalContent)
-	myWindow.SetFullScreen(true)
-	myWindow.ShowAndRun()
+	// Block forever
+	select {}
 }
 
 // sendToAPI envía los datos del sensor a la API
@@ -482,61 +382,21 @@ func sendToAPI(sensorUUID string, data *RuuviData) {
 	}
 }
 
-// updateGUIStatus actualiza el estado visual de la GUI
+// updateGUIStatus actualiza el estado visual de la UI
 func updateGUIStatus(success bool) {
-	statusMutex.Lock()
-	defer statusMutex.Unlock()
-
-	lastHTTPStatus = success
-
-	if statusIcon != nil && statusLabel != nil && background != nil {
-		if success {
-			// Éxito: pantalla verde con texto OK
-			statusIcon.Text = "OK"
-			statusIcon.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255} // Blanco
-			statusLabel.Text = "Ultima sincronizacion: EXITOSA"
-			statusLabel.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255} // Blanco
-			timestampLabel.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255} // Blanco
-			background.FillColor = color.RGBA{R: 0, G: 150, B: 0, A: 255} // Verde
-		} else {
-			// Error: pantalla roja con X
-			statusIcon.Text = "X"
-			statusIcon.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255} // Blanco
-			statusLabel.Text = "Ultima sincronizacion: ERROR"
-			statusLabel.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255} // Blanco
-			timestampLabel.Color = color.RGBA{R: 255, G: 255, B: 255, A: 255} // Blanco
-			background.FillColor = color.RGBA{R: 150, G: 0, B: 0, A: 255} // Rojo
-		}
-		statusIcon.Refresh()
-		statusLabel.Refresh()
-		timestampLabel.Refresh()
-		background.Refresh()
+	if terminalUI != nil {
+		msg := "Ultima sincronizacion"
+		terminalUI.UpdateStatus(success, msg)
 	}
 }
 
 // addLog añade un mensaje al log de actividad
 func addLog(message string) {
-	logMutex.Lock()
-	defer logMutex.Unlock()
-
 	timestamp := time.Now().Format("15:04:05")
 	logLine := fmt.Sprintf("[%s] %s", timestamp, message)
 
-	// Añadir al principio de la lista
-	logMessages = append([]string{logLine}, logMessages...)
-
-	// Mantener solo las últimas N líneas
-	if len(logMessages) > maxLogLines {
-		logMessages = logMessages[:maxLogLines]
-	}
-
-	// Actualizar UI
-	if activityLog != nil {
-		fullLog := ""
-		for _, line := range logMessages {
-			fullLog += line + "\n"
-		}
-		activityLog.SetText(fullLog)
+	if terminalUI != nil {
+		terminalUI.AddLog(logLine)
 	}
 }
 
@@ -545,34 +405,23 @@ func updateSensorStatus(config *Config) {
 	lastSeenMutex.Lock()
 	defer lastSeenMutex.Unlock()
 
-	if sensorStatus == nil {
+	if terminalUI == nil {
 		return
 	}
 
 	now := time.Now()
 	online := 0
-	offline := 0
 
 	for _, sensor := range config.Sensors {
 		if lastSeen, exists := lastSeenMap[sensor.MAC]; exists {
 			if now.Sub(lastSeen) < onlineTimeout {
 				online++
-			} else {
-				offline++
 			}
-		} else {
-			offline++
 		}
 	}
 
 	total := len(config.Sensors)
-	statusText := fmt.Sprintf("Sensores: %d/%d online", online, total)
-
-	if offline > 0 {
-		statusText += fmt.Sprintf("\n⚠️ %d offline", offline)
-	}
-
-	sensorStatus.SetText(statusText)
+	terminalUI.UpdateSensors(online, total)
 }
 
 // markSensorOnline marca un sensor como visto recientemente

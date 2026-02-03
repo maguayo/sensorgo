@@ -10,9 +10,11 @@ Programa en Go para escanear y leer datos de sensores RuuviTag por Bluetooth con
 - 💾 Soporta formato RAWv2 (el más común en sensores RuuviTag)
 - ⏱️ Muestra datos en tiempo real
 - 🌐 **Envío automático a API**: Envía datos cada 5 minutos a la API de Larvai
-- 🖥️ **Interfaz gráfica fullscreen**: Muestra el estado de sincronización con la API
-  - ✅ Check verde cuando la última sincronización fue exitosa
-  - ❌ Cruz roja cuando hubo un error en la sincronización
+- 🖥️ **Interfaz de terminal ASCII**: Muestra el estado de sincronización con la API
+  - ✅ Fondo verde cuando la última sincronización fue exitosa
+  - ❌ Fondo rojo cuando hubo un error en la sincronización
+  - 💻 Compatible con SSH y funciona sin display
+  - 📦 Binario ligero (~7.5MB) sin dependencias CGO
 
 ## Requisitos
 
@@ -75,6 +77,43 @@ Esto sobrescribirá la lista actual y escaneará nuevamente durante 10 segundos.
 
 Para detener el escaneo en cualquier momento, presiona `Ctrl+C`.
 
+### Ejecutar en segundo plano con screen/tmux
+
+Para mantener el programa ejecutándose después de cerrar la sesión SSH:
+
+**Con screen:**
+```bash
+# Iniciar nueva sesión
+screen -S monitor
+
+# Ejecutar el programa
+./insectius-monitor
+
+# Detach (dejar corriendo en segundo plano): Ctrl+A luego D
+# Reattach (volver a la sesión): screen -r monitor
+```
+
+**Con tmux:**
+```bash
+# Iniciar nueva sesión
+tmux new -s monitor
+
+# Ejecutar el programa
+./insectius-monitor
+
+# Detach: Ctrl+B luego D
+# Reattach: tmux attach -t monitor
+```
+
+**Con systemd (recomendado para producción):**
+```bash
+# Ver estado
+sudo systemctl status insectius-monitor
+
+# Ver logs en tiempo real
+journalctl -u insectius-monitor -f
+```
+
 ## Datos mostrados
 
 - 🌡️ **Temperatura**: en grados Celsius
@@ -83,20 +122,46 @@ Para detener el escaneo en cualquier momento, presiona `Ctrl+C`.
 - 🔋 **Batería**: en milivoltios (mV)
 - 📶 **TX Power**: potencia de transmisión en dBm
 
-## Interfaz Gráfica
+## Interfaz de Terminal
 
-El programa incluye una interfaz gráfica fullscreen que muestra:
+El programa incluye una interfaz de terminal ASCII que muestra:
 
-- **✓ Check verde grande**: Última sincronización exitosa con la API
-- **✗ Cruz roja grande**: Error en la última sincronización
-- **Timestamp**: Hora y fecha actual
-- **Estado**: Mensaje descriptivo del estado de sincronización
+```
+╔════════════════════════════════════════════════╗
+║ Insectius Monitor             Sensores: 2/2 ✓ ║
+╠════════════════════════════════════════════════╣
+║                                                ║
+║                     ✓                          ║
+║                  EXITOSA                       ║
+║                                                ║
+║              15:30:45 - 03/02/2026             ║
+║                                                ║
+╠════════════════════════════════════════════════╣
+║              Actividad del Sistema             ║
+╠════════════════════════════════════════════════╣
+║ [15:30:45] 📡 Ruuvi 39B1 detectado            ║
+║ [15:30:45] 📊 Datos: 22.5°C, 48.2%, 2800mV    ║
+║ [15:30:50] 📡 Ruuvi 052D detectado            ║
+║ [15:35:00] 🔄 Iniciando sincronización...      ║
+║ [15:35:02] ✅ Datos enviados exitosamente      ║
+╚════════════════════════════════════════════════╝
+```
+
+Características:
+- **Fondo verde**: Última sincronización exitosa con la API
+- **Fondo rojo**: Error en la última sincronización
+- **Timestamp**: Hora y fecha actual actualizada cada segundo
 - **Estado de sensores** (esquina superior derecha): Muestra cuántos sensores están online/offline
   - Se considera "online" si se ha detectado en los últimos 2 minutos
-  - Actualizado cada vez que se detecta un sensor
-- **Logs de actividad**: Últimas 15 acciones del sistema en tiempo real
+- **Logs de actividad**: Últimas 10 acciones del sistema en tiempo real
 
-La GUI se actualiza automáticamente cada vez que se envían datos a la API.
+Ventajas:
+- ✅ No requiere display gráfico (funciona por SSH)
+- ✅ Compatible con screen/tmux para ejecutar en segundo plano
+- ✅ Ultra ligero (~7.5MB binary, sin CGO)
+- ✅ Cross-compila fácilmente para ARM64 (Raspberry Pi)
+
+La interfaz se actualiza automáticamente cada vez que se envían datos a la API.
 
 ## Integración con API
 

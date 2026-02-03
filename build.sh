@@ -5,8 +5,8 @@ set -e
 
 echo "🔨 Compilando RuuviTag Monitor para Linux..."
 
-# Compilar para Linux AMD64
-GOOS=linux GOARCH=amd64 go build -o insectius-monitor main.go
+# Compilar para Linux AMD64 (sin CGO para portabilidad)
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o insectius-monitor main.go
 
 echo "✅ Binario compilado: insectius-monitor"
 echo ""
