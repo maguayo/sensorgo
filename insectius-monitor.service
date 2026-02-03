@@ -2,6 +2,9 @@
 Description=Insectius Monitor - Sensor Data Collection and API Sync
 After=network.target bluetooth.target graphical.target
 Wants=bluetooth.target
+# Esperar a que Bluetooth esté completamente listo
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -9,9 +12,11 @@ User=%USERNAME%
 Environment="DISPLAY=:0"
 Environment="XAUTHORITY=/home/%USERNAME%/.Xauthority"
 WorkingDirectory=/opt/insectius-monitor
+# Esperar a que Bluetooth esté listo antes de iniciar
+ExecStartPre=/bin/sleep 5
 ExecStart=/opt/insectius-monitor/insectius-monitor
 Restart=always
-RestartSec=10
+RestartSec=15
 
 # Logging
 StandardOutput=journal

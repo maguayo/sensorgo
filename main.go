@@ -75,11 +75,28 @@ func main() {
 	}
 
 	adapter := bluetooth.DefaultAdapter
-	err = adapter.Enable()
+
+	// Intentar habilitar Bluetooth con reintentos
+	maxRetries := 5
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		err = adapter.Enable()
+		if err == nil {
+			break
+		}
+		if i < maxRetries-1 {
+			fmt.Printf("⚠️  Reintentando habilitar Bluetooth (%d/%d)...\n", i+1, maxRetries)
+			time.Sleep(2 * time.Second)
+		}
+	}
 	if err != nil {
-		fmt.Printf("❌ Error habilitando Bluetooth: %v\n", err)
+		fmt.Printf("❌ Error habilitando Bluetooth después de %d intentos: %v\n", maxRetries, err)
 		return
 	}
+
+	// Esperar a que Bluetooth esté completamente listo
+	fmt.Println("⏳ Esperando a que Bluetooth esté listo...")
+	time.Sleep(3 * time.Second)
 
 	// Verificar si existe el archivo de configuración
 	config, firstRun := loadConfig()
@@ -236,7 +253,11 @@ func startMonitoring(adapter *bluetooth.Adapter, config *Config) {
 	go func() {
 		addLog("🔍 Iniciando escaneo de sensores...")
 
-		err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
+		// Reintentar si Bluetooth no está listo
+		maxScanRetries := 3
+		var scanErr error
+		for i := 0; i < maxScanRetries; i++ {
+			scanErr = adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
 			// Buscar RuuviTag en el nombre o en manufacturer data
 			if isRuuviTag(device) {
 				mac := device.Address.String()
@@ -275,10 +296,23 @@ func startMonitoring(adapter *bluetooth.Adapter, config *Config) {
 					fmt.Printf("   🔋 Batería: %d mV\n", data.Battery)
 				}
 			}
-		})
+			})
 
-		if err != nil {
-			fmt.Printf("❌ Error escaneando: %v\n", err)
+			if scanErr == nil {
+				break // Escaneo exitoso
+			}
+
+			// Si hay error y no es el último intento, esperar y reintentar
+			if i < maxScanRetries-1 {
+				fmt.Printf("⚠️  Error escaneando (intento %d/%d): %v\n", i+1, maxScanRetries, scanErr)
+				addLog(fmt.Sprintf("⚠️  Reintentando escaneo en 5 segundos..."))
+				time.Sleep(5 * time.Second)
+			}
+		}
+
+		if scanErr != nil {
+			fmt.Printf("❌ Error escaneando después de %d intentos: %v\n", maxScanRetries, scanErr)
+			addLog(fmt.Sprintf("❌ Error crítico en escaneo: %v", scanErr))
 		}
 	}()
 
