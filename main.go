@@ -78,7 +78,6 @@ func main() {
 
 	// Intentar habilitar Bluetooth con reintentos
 	maxRetries := 5
-	var err error
 	for i := 0; i < maxRetries; i++ {
 		err = adapter.Enable()
 		if err == nil {
