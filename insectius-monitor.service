@@ -1,0 +1,26 @@
+[Unit]
+Description=Insectius Monitor - Sensor Data Collection and API Sync
+After=network.target bluetooth.target graphical.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=%USERNAME%
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/%USERNAME%/.Xauthority"
+WorkingDirectory=/opt/insectius-monitor
+ExecStart=/opt/insectius-monitor/insectius-monitor
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=insectius-monitor
+
+# Capabilities for Bluetooth access
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=graphical.target

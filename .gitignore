@@ -1,0 +1,27 @@
+# Archivos de configuración privados
+authorized_sensors.json
+
+# Binarios de Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Archivos de prueba
+*.test
+
+# Binarios compilados
+sensorsgo
+ruuvitag-monitor
+insectius-monitor
+
+# Dependencias de Go
+go.sum
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

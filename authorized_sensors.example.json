@@ -1,0 +1,14 @@
+{
+  "authorized_sensors": [
+    {
+      "mac": "AA:BB:CC:DD:EE:FF",
+      "name": "Ruuvi ABCD",
+      "registered_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "mac": "11:22:33:44:55:66",
+      "name": "Ruuvi XYZ",
+      "registered_at": "2024-01-15T10:30:00Z"
+    }
+  ]
+}

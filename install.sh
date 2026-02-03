@@ -1,0 +1,134 @@
+#!/bin/bash
+# Script de instalación para RuuviTag Monitor en Debian/Ubuntu
+
+set -e
+
+# Colores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo -e "${GREEN}  RuuviTag Monitor - Instalación para Ubuntu  ${NC}"
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo ""
+
+# Verificar que se ejecuta como root
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}❌ Error: Este script debe ejecutarse como root${NC}"
+    echo "   Usa: sudo ./install.sh"
+    exit 1
+fi
+
+# Obtener el usuario real (no root)
+REAL_USER=${SUDO_USER:-$USER}
+if [ "$REAL_USER" = "root" ]; then
+    echo -e "${YELLOW}⚠️  Advertencia: No se detectó un usuario no-root${NC}"
+    read -p "Introduce el nombre de usuario para ejecutar el servicio: " REAL_USER
+fi
+
+echo -e "${GREEN}📦 Instalando para el usuario: $REAL_USER${NC}"
+echo ""
+
+# Verificar dependencias
+echo "🔍 Verificando dependencias..."
+if ! command -v go &> /dev/null; then
+    echo -e "${RED}❌ Go no está instalado${NC}"
+    echo "   Instala Go desde: https://golang.org/dl/"
+    exit 1
+fi
+
+# Instalar dependencias del sistema si no están
+echo "📦 Instalando dependencias del sistema..."
+apt-get update -qq
+apt-get install -y bluetooth bluez libbluetooth-dev
+
+# Compilar el binario si no existe
+if [ ! -f "insectius-monitor" ]; then
+    echo "🔨 Compilando binario..."
+    sudo -u $REAL_USER GOOS=linux GOARCH=amd64 go build -o insectius-monitor main.go
+fi
+
+# Verificar que el binario existe
+if [ ! -f "insectius-monitor" ]; then
+    echo -e "${RED}❌ Error: No se pudo compilar el binario${NC}"
+    exit 1
+fi
+
+# Crear directorio de instalación
+echo "📁 Creando directorio de instalación..."
+mkdir -p /opt/insectius-monitor
+chown $REAL_USER:$REAL_USER /opt/insectius-monitor
+
+# Copiar binario
+echo "📋 Copiando binario..."
+cp insectius-monitor /opt/insectius-monitor/
+chmod +x /opt/insectius-monitor/insectius-monitor
+chown $REAL_USER:$REAL_USER /opt/insectius-monitor/insectius-monitor
+
+# Copiar archivo de configuración si existe
+if [ -f "authorized_sensors.json" ]; then
+    echo "⚙️  Copiando configuración de sensores..."
+    cp authorized_sensors.json /opt/insectius-monitor/
+    chown $REAL_USER:$REAL_USER /opt/insectius-monitor/authorized_sensors.json
+else
+    echo -e "${YELLOW}⚠️  No se encontró authorized_sensors.json${NC}"
+    echo "   Ejecuta el programa manualmente una vez para registrar sensores:"
+    echo "   sudo -u $REAL_USER /opt/insectius-monitor/insectius-monitor"
+fi
+
+# Crear archivo de servicio systemd
+echo "🔧 Configurando servicio systemd..."
+cat insectius-monitor.service | sed "s/%USERNAME%/$REAL_USER/g" > /etc/systemd/system/insectius-monitor.service
+
+# Dar permisos de Bluetooth al usuario
+echo "🔐 Configurando permisos de Bluetooth..."
+usermod -a -G bluetooth $REAL_USER
+
+# Configurar capabilities para el binario (acceso Bluetooth sin root)
+setcap 'cap_net_raw,cap_net_admin+eip' /opt/insectius-monitor/insectius-monitor
+
+# Recargar systemd
+echo "🔄 Recargando systemd..."
+systemctl daemon-reload
+
+# Habilitar servicio para auto-inicio
+echo "✅ Habilitando auto-inicio..."
+systemctl enable insectius-monitor.service
+
+echo ""
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo -e "${GREEN}  ✅ Instalación completada exitosamente      ${NC}"
+echo -e "${GREEN}═══════════════════════════════════════════════${NC}"
+echo ""
+echo "📋 Comandos útiles:"
+echo ""
+echo "  Iniciar servicio:"
+echo "    sudo systemctl start insectius-monitor"
+echo ""
+echo "  Detener servicio:"
+echo "    sudo systemctl stop insectius-monitor"
+echo ""
+echo "  Ver estado:"
+echo "    sudo systemctl status insectius-monitor"
+echo ""
+echo "  Ver logs:"
+echo "    sudo journalctl -u insectius-monitor -f"
+echo ""
+echo "  Deshabilitar auto-inicio:"
+echo "    sudo systemctl disable insectius-monitor"
+echo ""
+echo -e "${YELLOW}⚠️  IMPORTANTE:${NC}"
+echo "  1. El usuario $REAL_USER debe cerrar sesión y volver a entrar"
+echo "     para que los permisos de Bluetooth tomen efecto"
+echo ""
+if [ ! -f "/opt/insectius-monitor/authorized_sensors.json" ]; then
+    echo "  2. Antes de iniciar el servicio, registra tus sensores:"
+    echo "     cd /opt/insectius-monitor && sudo -u $REAL_USER ./insectius-monitor"
+    echo "     (Espera 10 segundos para que detecte los sensores, luego Ctrl+C)"
+    echo ""
+fi
+echo "  3. Para iniciar el servicio ahora:"
+echo "     sudo systemctl start insectius-monitor"
+echo ""
