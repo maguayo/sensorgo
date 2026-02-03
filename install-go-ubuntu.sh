@@ -9,16 +9,16 @@ echo "📦 Instalando Go ${GO_VERSION} en Ubuntu..."
 
 # Descargar Go
 cd /tmp
-wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz
+wget https://go.dev/dl/go${GO_VERSION}.linux-arm64.tar.gz
 
 # Eliminar instalación anterior si existe
 sudo rm -rf /usr/local/go
 
 # Extraer nueva versión
-sudo tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go${GO_VERSION}.linux-arm64.tar.gz
 
 # Limpiar
-rm go${GO_VERSION}.linux-amd64.tar.gz
+rm go${GO_VERSION}.linux-arm64.tar.gz
 
 # Añadir al PATH
 if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
