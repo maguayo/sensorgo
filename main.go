@@ -77,16 +77,21 @@ func main() {
 
 	adapter := bluetooth.DefaultAdapter
 
-	// Intentar habilitar Bluetooth con reintentos
-	maxRetries := 5
+	fmt.Println("🔍 DEBUG: Intentando habilitar adaptador Bluetooth...")
+
+	// Intentar habilitar Bluetooth con reintentos más largos
+	maxRetries := 10
 	for i := 0; i < maxRetries; i++ {
+		fmt.Printf("   Intento %d/%d...\n", i+1, maxRetries)
 		err = adapter.Enable()
 		if err == nil {
+			fmt.Println("✅ DEBUG: adapter.Enable() exitoso")
 			break
 		}
+		fmt.Printf("   Error: %v\n", err)
 		if i < maxRetries-1 {
-			fmt.Printf("⚠️  Reintentando habilitar Bluetooth (%d/%d)...\n", i+1, maxRetries)
-			time.Sleep(2 * time.Second)
+			fmt.Printf("⚠️  Reintentando en 3 segundos...\n")
+			time.Sleep(3 * time.Second)
 		}
 	}
 	if err != nil {
@@ -94,9 +99,10 @@ func main() {
 		return
 	}
 
-	// Esperar a que Bluetooth esté completamente listo
-	fmt.Println("⏳ Esperando a que Bluetooth esté listo...")
-	time.Sleep(3 * time.Second)
+	// Esperar más tiempo a que Bluetooth esté completamente listo
+	fmt.Println("⏳ Esperando 10 segundos para que Bluetooth esté listo...")
+	time.Sleep(10 * time.Second)
+	fmt.Println("✅ Espera completada")
 
 	// Verificar si existe el archivo de configuración
 	config, firstRun := loadConfig()
@@ -252,8 +258,14 @@ func startMonitoring(adapter *bluetooth.Adapter, config *Config) {
 	// Goroutine para escanear dispositivos
 	go func() {
 		addLog("🔍 Iniciando escaneo de sensores...")
+		fmt.Println("🔍 DEBUG: Iniciando goroutine de escaneo...")
 
-		err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
+		// Intentar escaneo con reintentos
+		maxScanRetries := 5
+		for attempt := 0; attempt < maxScanRetries; attempt++ {
+			fmt.Printf("🔍 DEBUG: Intento de escaneo %d/%d\n", attempt+1, maxScanRetries)
+
+			err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
 			// Buscar RuuviTag en el nombre o en manufacturer data
 			if isRuuviTag(device) {
 				mac := device.Address.String()
@@ -292,12 +304,23 @@ func startMonitoring(adapter *bluetooth.Adapter, config *Config) {
 					fmt.Printf("   🔋 Batería: %d mV\n", data.Battery)
 				}
 			}
-		})
+			})
 
-		if err != nil {
-			fmt.Printf("❌ Error escaneando: %v\n", err)
-			addLog(fmt.Sprintf("❌ Error en escaneo: %v", err))
+			if err != nil {
+				fmt.Printf("❌ Error escaneando (intento %d): %v\n", attempt+1, err)
+				addLog(fmt.Sprintf("❌ Error en escaneo: %v", err))
+
+				if attempt < maxScanRetries-1 {
+					fmt.Printf("⏳ Esperando 5 segundos antes de reintentar...\n")
+					time.Sleep(5 * time.Second)
+					continue
+				}
+			} else {
+				// Scan terminó sin error (no debería pasar normalmente)
+				break
+			}
 		}
+		fmt.Println("❌ DEBUG: Todos los intentos de escaneo fallaron")
 	}()
 
 	// Iniciar terminal UI
