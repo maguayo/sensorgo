@@ -253,11 +253,7 @@ func startMonitoring(adapter *bluetooth.Adapter, config *Config) {
 	go func() {
 		addLog("🔍 Iniciando escaneo de sensores...")
 
-		// Reintentar si Bluetooth no está listo
-		maxScanRetries := 3
-		var scanErr error
-		for i := 0; i < maxScanRetries; i++ {
-			scanErr = adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
+		err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
 			// Buscar RuuviTag en el nombre o en manufacturer data
 			if isRuuviTag(device) {
 				mac := device.Address.String()
@@ -296,23 +292,11 @@ func startMonitoring(adapter *bluetooth.Adapter, config *Config) {
 					fmt.Printf("   🔋 Batería: %d mV\n", data.Battery)
 				}
 			}
-			})
+		})
 
-			if scanErr == nil {
-				break // Escaneo exitoso
-			}
-
-			// Si hay error y no es el último intento, esperar y reintentar
-			if i < maxScanRetries-1 {
-				fmt.Printf("⚠️  Error escaneando (intento %d/%d): %v\n", i+1, maxScanRetries, scanErr)
-				addLog(fmt.Sprintf("⚠️  Reintentando escaneo en 5 segundos..."))
-				time.Sleep(5 * time.Second)
-			}
-		}
-
-		if scanErr != nil {
-			fmt.Printf("❌ Error escaneando después de %d intentos: %v\n", maxScanRetries, scanErr)
-			addLog(fmt.Sprintf("❌ Error crítico en escaneo: %v", scanErr))
+		if err != nil {
+			fmt.Printf("❌ Error escaneando: %v\n", err)
+			addLog(fmt.Sprintf("❌ Error en escaneo: %v", err))
 		}
 	}()
 
