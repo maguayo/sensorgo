@@ -33,11 +33,26 @@ echo ""
 
 # Verificar dependencias
 echo "🔍 Verificando dependencias..."
-if ! command -v go &> /dev/null; then
+
+# Buscar Go en rutas comunes
+GO_PATH=""
+if command -v go &> /dev/null; then
+    GO_PATH=$(command -v go)
+elif [ -x "/usr/local/go/bin/go" ]; then
+    GO_PATH="/usr/local/go/bin/go"
+    export PATH=$PATH:/usr/local/go/bin
+elif [ -x "/usr/bin/go" ]; then
+    GO_PATH="/usr/bin/go"
+fi
+
+if [ -z "$GO_PATH" ]; then
     echo -e "${RED}❌ Go no está instalado${NC}"
-    echo "   Instala Go desde: https://golang.org/dl/"
+    echo "   Ejecuta: ./install-go-ubuntu.sh"
     exit 1
 fi
+
+echo -e "${GREEN}✓ Go encontrado en: $GO_PATH${NC}"
+$GO_PATH version
 
 # Instalar dependencias del sistema si no están
 echo "📦 Instalando dependencias del sistema..."
@@ -47,7 +62,7 @@ apt-get install -y bluetooth bluez libbluetooth-dev
 # Compilar el binario si no existe
 if [ ! -f "insectius-monitor" ]; then
     echo "🔨 Compilando binario..."
-    sudo -u $REAL_USER GOOS=linux GOARCH=amd64 go build -o insectius-monitor main.go
+    sudo -u $REAL_USER env PATH=$PATH $GO_PATH build -o insectius-monitor main.go
 fi
 
 # Verificar que el binario existe
