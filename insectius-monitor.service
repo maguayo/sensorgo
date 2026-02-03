@@ -8,9 +8,8 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=%USERNAME%
-Environment="DISPLAY=:0"
-Environment="XAUTHORITY=/home/%USERNAME%/.Xauthority"
+User=root
+Environment="HOME=/root"
 WorkingDirectory=/opt/insectius-monitor
 # Esperar a que Bluetooth esté listo antes de iniciar
 ExecStartPre=/bin/sleep 5

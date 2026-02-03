@@ -132,12 +132,22 @@ if [ ! -f "$API_KEY_FILE" ]; then
         echo "$API_KEY" > "$API_KEY_FILE"
         chmod 600 "$API_KEY_FILE"
         chown $REAL_USER:$REAL_USER "$API_KEY_FILE"
-        echo -e "${GREEN}✓ API key guardada${NC}"
+        echo -e "${GREEN}✓ API key guardada en $API_KEY_FILE${NC}"
     else
         echo -e "${YELLOW}⚠️  Recuerda crear $API_KEY_FILE antes de usar el servicio${NC}"
     fi
 else
-    echo -e "${GREEN}✓ API key encontrada${NC}"
+    echo -e "${GREEN}✓ API key encontrada en $API_KEY_FILE${NC}"
+fi
+
+# Copiar API key para root (el servicio corre como root)
+if [ -f "$API_KEY_FILE" ]; then
+    echo "Copiando API key para root..."
+    cp "$API_KEY_FILE" /root/.insectius-monitor
+    chmod 600 /root/.insectius-monitor
+    echo -e "${GREEN}✓ API key copiada a /root/.insectius-monitor${NC}"
+else
+    echo -e "${YELLOW}⚠️  No se pudo copiar API key a root (créala primero)${NC}"
 fi
 echo ""
 
@@ -221,43 +231,36 @@ echo ""
 
 echo "🔧 Configurando servicio systemd..."
 
-# Create service file
+# Create service file (running as root for Bluetooth UART access)
 cat > /etc/systemd/system/insectius-monitor.service <<EOF
 [Unit]
 Description=Insectius Monitor - Sensor Data Collection and API Sync
 After=network.target bluetooth.target
 Wants=bluetooth.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
-User=$REAL_USER
+User=root
+Environment="HOME=/root"
 WorkingDirectory=/opt/insectius-monitor
+# Esperar a que Bluetooth esté listo antes de iniciar
+ExecStartPre=/bin/sleep 5
 ExecStart=/opt/insectius-monitor/insectius-monitor
 Restart=always
-RestartSec=10
+RestartSec=15
 
 # Logging
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=insectius-monitor
 
-# Bluetooth permissions
-AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
-CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
-
 [Install]
 WantedBy=multi-user.target
 EOF
 
-echo -e "${GREEN}✓ Servicio creado${NC}"
-
-# Configure Bluetooth permissions
-echo "🔐 Configurando permisos de Bluetooth..."
-usermod -a -G bluetooth $REAL_USER 2>/dev/null || true
-
-# Set capabilities
-setcap 'cap_net_raw,cap_net_admin+eip' /opt/insectius-monitor/insectius-monitor 2>/dev/null || \
-    echo -e "${YELLOW}⚠️  No se pudieron establecer capabilities (no crítico)${NC}"
+echo -e "${GREEN}✓ Servicio creado (corre como root para acceso UART Bluetooth)${NC}"
 
 # Reload systemd
 systemctl daemon-reload

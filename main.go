@@ -57,6 +57,7 @@ type SensorPayload struct {
 	Temperature float64 `json:"temperature"`
 	Humidity    float64 `json:"humidity"`
 	Battery     uint16  `json:"battery"`
+	Hostname    string  `json:"hostname"`
 }
 
 func main() {
@@ -316,10 +317,17 @@ func startTerminalUI() {
 func sendToAPI(sensorUUID string, data *RuuviData) {
 	addLog(fmt.Sprintf("📤 Enviando datos a la API (Temp: %.1f°C, Hum: %.1f%%, Bat: %dmV)", data.Temperature, data.Humidity, data.Battery))
 
+	// Obtener hostname del sistema
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+
 	payload := SensorPayload{
 		Temperature: data.Temperature,
 		Humidity:    data.Humidity,
 		Battery:     data.Battery,
+		Hostname:    hostname,
 	}
 
 	jsonData, err := json.Marshal(payload)
