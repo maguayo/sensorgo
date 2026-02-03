@@ -196,6 +196,48 @@ El programa implementa una lista blanca de sensores autorizados:
 - Protege contra sensores no autorizados
 - Útil en espacios compartidos o públicos
 
+## GUI Monitor (Raspberry Pi Display)
+
+Además del monitor de terminal, se incluye una aplicación GUI con Python para mostrar el estado en pantalla completa.
+
+### Características del GUI Monitor
+
+- 🟢 **Indicador visual grande**: Muestra ✓ verde o ✗ roja en pantalla completa
+- ✓ **Verde**: Todos los sensores han reportado en los últimos 6 minutos
+- ✗ **Roja**: Algún sensor no ha reportado o hay error de API
+- 📊 **Info de sensores**: Muestra cantidad y nombres de sensores (esquina inferior derecha)
+- 🔄 **Auto-actualización**: Verifica el estado cada 30 segundos
+
+### Instalación del GUI Monitor
+
+```bash
+# Instalación automática (recomendado)
+./install-monitor-gui.sh
+
+# O instalación manual:
+pip3 install -r requirements-gui.txt
+chmod +x monitor_gui.py launch_monitor.sh
+```
+
+### Ejecutar el GUI Monitor
+
+```bash
+# Opción 1: Directamente
+python3 monitor_gui.py
+
+# Opción 2: Con el script launcher
+./launch_monitor.sh
+
+# Opción 3: Doble-clic en el icono de escritorio (si lo creaste durante instalación)
+```
+
+### Atajos de Teclado
+
+- `ESC` - Alternar pantalla completa
+- `Q` - Salir de la aplicación
+
+Consulta [MONITOR_GUI_README.md](./MONITOR_GUI_README.md) para más detalles sobre configuración y troubleshooting.
+
 ## Notas
 
 - Los sensores RuuviTag transmiten datos continuamente sin necesidad de conexión

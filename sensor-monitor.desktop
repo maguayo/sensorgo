@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Sensor Monitor
+Comment=Monitor sensor readings status
+Exec=/home/pi/sensorsgo/launch_monitor.sh
+Icon=utilities-system-monitor
+Terminal=false
+Categories=Utility;Monitor;
